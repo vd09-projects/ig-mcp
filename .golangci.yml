@@ -1,0 +1,43 @@
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - misspell
+    - gofmt
+    - goimports
+    - revive
+    - gosec
+    - bodyclose
+    - nilerr
+    - errorlint
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - "checkPrivateReceivers"
+      - name: blank-imports
+      - name: context-as-argument
+      - name: error-return
+      - name: error-strings
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+
+  govet:
+    enable-all: true
+
+  goimports:
+    local-prefixes: github.com/vikrant/instagram-mcp
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
