@@ -10,13 +10,15 @@ package tools
 
 import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/vikrant/instagram-mcp/internal/hosting"
 	"github.com/vikrant/instagram-mcp/internal/instagram"
 )
 
 // Register adds all Instagram tools to the MCP server.
-func Register(server *mcp.Server, client instagram.Client) {
+// host may be nil — if so, local-file hosting tools are not registered.
+func Register(server *mcp.Server, client instagram.Client, host hosting.VideoHost) {
 	// Upload tools
-	registerUploadReel(server, client)
+	registerUploadReel(server, client, host)
 	registerUploadImage(server, client)
 	registerUploadCarousel(server, client)
 
@@ -28,4 +30,10 @@ func Register(server *mcp.Server, client instagram.Client) {
 	registerGetRateLimit(server, client)
 	registerGetInsights(server, client)
 	registerListMedia(server, client)
+
+	// Video hosting tools (only when a host backend is configured)
+	if host != nil {
+		registerHostVideo(server, host)
+		registerDeleteHostedAsset(server, host)
+	}
 }

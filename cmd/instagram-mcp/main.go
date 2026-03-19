@@ -16,6 +16,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/vikrant/instagram-mcp/internal/config"
 	"github.com/vikrant/instagram-mcp/internal/graphapi"
+	"github.com/vikrant/instagram-mcp/internal/hosting"
 	"github.com/vikrant/instagram-mcp/internal/instagram"
 	"github.com/vikrant/instagram-mcp/internal/tools"
 )
@@ -45,13 +46,24 @@ func run() error {
 	// ── Instagram domain client ──────────────────────────────────────────
 	igClient := instagram.NewClient(api, cfg.AccountID, cfg.PollInterval, cfg.PollMaxAttempts)
 
+	// ── Video hosting (optional) ─────────────────────────────────────────
+	var videoHost hosting.VideoHost
+	if cfg.GitHubHostingEnabled() {
+		gh, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo)
+		if err != nil {
+			return fmt.Errorf("creating GitHub host: %w", err)
+		}
+		videoHost = gh
+		log.Printf("github hosting enabled (repo: %s)", cfg.GitHubRepo)
+	}
+
 	// ── MCP server ───────────────────────────────────────────────────────
 	server := mcp.NewServer(
 		&mcp.Implementation{Name: serverName, Version: serverVersion},
 		nil,
 	)
 
-	tools.Register(server, igClient)
+	tools.Register(server, igClient, videoHost)
 
 	// ── Graceful shutdown ────────────────────────────────────────────────
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

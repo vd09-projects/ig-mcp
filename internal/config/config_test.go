@@ -32,7 +32,7 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.PollMaxAttempts != 60 {
 		t.Errorf("expected default poll max 60, got %d", cfg.PollMaxAttempts)
 	}
-	if cfg.BaseURL() != "https://graph.facebook.com/v21.0" {
+	if cfg.BaseURL() != "https://graph.instagram.com/v21.0" {
 		t.Errorf("unexpected base URL: %s", cfg.BaseURL())
 	}
 }

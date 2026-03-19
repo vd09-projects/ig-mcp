@@ -31,6 +31,14 @@ type Config struct {
 	// PollMaxAttempts is the maximum number of status polls before we
 	// declare a timeout.
 	PollMaxAttempts int
+
+	// GitHubToken is a personal access token with repo scope for uploading
+	// release assets. Optional — if empty, local-file hosting is disabled.
+	GitHubToken string
+
+	// GitHubRepo is the target repository in "owner/repo" format.
+	// Optional — required only when GitHubToken is set.
+	GitHubRepo string
 }
 
 // Load reads configuration from environment variables, applies defaults,
@@ -40,6 +48,8 @@ func Load() (*Config, error) {
 		AccessToken:     os.Getenv("INSTAGRAM_ACCESS_TOKEN"),
 		AccountID:       os.Getenv("INSTAGRAM_ACCOUNT_ID"),
 		GraphAPIVersion: envOrDefault("GRAPH_API_VERSION", "v21.0"),
+		GitHubToken:     os.Getenv("GITHUB_TOKEN"),
+		GitHubRepo:      os.Getenv("GITHUB_REPO"),
 	}
 
 	pollMS, err := envIntOrDefault("STATUS_POLL_INTERVAL_MS", 5000)
@@ -65,6 +75,11 @@ func (c *Config) BaseURL() string {
 	return "https://graph.instagram.com/" + c.GraphAPIVersion
 }
 
+// GitHubHostingEnabled reports whether GitHub Release hosting is configured.
+func (c *Config) GitHubHostingEnabled() bool {
+	return c.GitHubToken != "" && c.GitHubRepo != ""
+}
+
 func (c *Config) validate() error {
 	var errs []error
 	if c.AccessToken == "" {
@@ -78,6 +93,9 @@ func (c *Config) validate() error {
 	}
 	if c.PollMaxAttempts <= 0 {
 		errs = append(errs, errors.New("STATUS_POLL_MAX_ATTEMPTS must be positive"))
+	}
+	if c.GitHubToken != "" && c.GitHubRepo == "" {
+		errs = append(errs, errors.New("GITHUB_REPO is required when GITHUB_TOKEN is set"))
 	}
 	return errors.Join(errs...)
 }

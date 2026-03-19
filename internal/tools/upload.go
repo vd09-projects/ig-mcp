@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/vikrant/instagram-mcp/internal/hosting"
 	"github.com/vikrant/instagram-mcp/internal/instagram"
 )
 
@@ -13,7 +14,8 @@ import (
 // ---------------------------------------------------------------------------
 
 type uploadReelInput struct {
-	VideoURL          string              `json:"video_url"`
+	VideoURL          string              `json:"video_url,omitempty"`
+	VideoPath         string              `json:"video_path,omitempty"`
 	Caption           string              `json:"caption,omitempty"`
 	ShareToFeed       *bool               `json:"share_to_feed,omitempty"`
 	ThumbOffset       *int                `json:"thumb_offset,omitempty"`
@@ -29,18 +31,40 @@ type uploadReelOutput struct {
 	Status      string `json:"status"`
 	MediaID     string `json:"media_id,omitempty"`
 	ContainerID string `json:"container_id"`
+	AssetID     int64  `json:"asset_id,omitempty"`
 	Message     string `json:"message"`
 }
 
-func registerUploadReel(server *mcp.Server, client instagram.Client) {
+func registerUploadReel(server *mcp.Server, client instagram.Client, host hosting.VideoHost) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "upload_reel",
-		Description: "Upload a video as an Instagram Reel. Creates a container, waits for " +
-			"processing, then publishes. Returns the published media ID.",
+		Description: "Upload a video as an Instagram Reel. Provide either video_url (public URL) " +
+			"or video_path (local file, requires GitHub hosting config). Creates a container, " +
+			"waits for processing, then publishes. Returns the published media ID.",
 	}, func(ctx context.Context, _ *mcp.ServerSession, params *mcp.CallToolParamsFor[uploadReelInput]) (*mcp.CallToolResultFor[uploadReelOutput], error) {
 		input := params.Arguments
+
+		videoURL := input.VideoURL
+		var assetID int64
+
+		// If a local path is provided, host it first.
+		if input.VideoPath != "" && videoURL == "" {
+			if host == nil {
+				return errorResult[uploadReelOutput](fmt.Errorf("video_path requires GitHub hosting (set GITHUB_TOKEN and GITHUB_REPO)")), nil
+			}
+			var err error
+			videoURL, assetID, err = host.Upload(ctx, input.VideoPath)
+			if err != nil {
+				return errorResult[uploadReelOutput](fmt.Errorf("hosting video: %w", err)), nil
+			}
+		}
+
+		if videoURL == "" {
+			return errorResult[uploadReelOutput](fmt.Errorf("either video_url or video_path is required")), nil
+		}
+
 		containerID, err := client.CreateReelContainer(ctx, instagram.ReelParams{
-			VideoURL:      input.VideoURL,
+			VideoURL:      videoURL,
 			Caption:       input.Caption,
 			ShareToFeed:   input.ShareToFeed,
 			ThumbOffset:   input.ThumbOffset,
@@ -59,6 +83,7 @@ func registerUploadReel(server *mcp.Server, client instagram.Client) {
 			return okResult(uploadReelOutput{
 				Status:      "container_created",
 				ContainerID: containerID,
+				AssetID:     assetID,
 				Message:     "Container created. Use check_container_status to poll, then publish_media.",
 			}), nil
 		}
@@ -77,6 +102,7 @@ func registerUploadReel(server *mcp.Server, client instagram.Client) {
 			Status:      "published",
 			MediaID:     pub.ID,
 			ContainerID: containerID,
+			AssetID:     assetID,
 			Message:     "Reel uploaded and published successfully!",
 		}), nil
 	})
