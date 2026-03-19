@@ -62,9 +62,10 @@ type CarouselParams struct {
 
 // ContainerStatusResult is the response from a container status check.
 type ContainerStatusResult struct {
-	ID         string          `json:"id"`
-	StatusCode ContainerStatus `json:"status_code"`
-	Status     string          `json:"status,omitempty"`
+	ID           string          `json:"id"`
+	StatusCode   ContainerStatus `json:"status_code"`
+	Status       string          `json:"status,omitempty"`
+	ErrorMessage string          `json:"error_message,omitempty"`
 }
 
 // PublishResult is the response from publishing a media container.

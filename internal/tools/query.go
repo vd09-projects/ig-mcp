@@ -13,16 +13,26 @@ import (
 
 type emptyInput struct{}
 
+type rateLimitOutput struct {
+	QuotaTotal    int `json:"quota_total"`
+	QuotaDuration int `json:"quota_duration"`
+	QuotaUsage    int `json:"quota_usage"`
+}
+
 func registerGetRateLimit(server *mcp.Server, client instagram.Client) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_publishing_rate_limit",
 		Description: "Check remaining posts in the 24-hour API publishing window (limit: 50 posts).",
-	}, func(ctx context.Context, _ *mcp.ServerSession, _ *mcp.CallToolParamsFor[emptyInput]) (*mcp.CallToolResultFor[*instagram.RateLimitInfo], error) {
+	}, func(ctx context.Context, _ *mcp.ServerSession, _ *mcp.CallToolParamsFor[emptyInput]) (*mcp.CallToolResultFor[rateLimitOutput], error) {
 		info, err := client.GetPublishingRateLimit(ctx)
 		if err != nil {
-			return errorResult[*instagram.RateLimitInfo](err), nil
+			return errorResult[rateLimitOutput](err), nil
 		}
-		return okResult(info), nil
+		return okResult(rateLimitOutput{
+			QuotaTotal:    info.Config.QuotaTotal,
+			QuotaDuration: info.Config.QuotaDuration,
+			QuotaUsage:    info.QuotaUsage,
+		}), nil
 	})
 }
 

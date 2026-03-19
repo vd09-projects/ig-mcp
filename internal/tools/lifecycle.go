@@ -15,16 +15,26 @@ type checkStatusInput struct {
 	ContainerID string `json:"container_id"`
 }
 
+type checkStatusOutput struct {
+	ID         string `json:"id"`
+	StatusCode string `json:"status_code"`
+	Status     string `json:"status,omitempty"`
+}
+
 func registerCheckContainerStatus(server *mcp.Server, client instagram.Client) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "check_container_status",
 		Description: "Check the processing status of a media container (IN_PROGRESS, FINISHED, ERROR, EXPIRED).",
-	}, func(ctx context.Context, _ *mcp.ServerSession, params *mcp.CallToolParamsFor[checkStatusInput]) (*mcp.CallToolResultFor[*instagram.ContainerStatusResult], error) {
+	}, func(ctx context.Context, _ *mcp.ServerSession, params *mcp.CallToolParamsFor[checkStatusInput]) (*mcp.CallToolResultFor[checkStatusOutput], error) {
 		status, err := client.GetContainerStatus(ctx, params.Arguments.ContainerID)
 		if err != nil {
-			return errorResult[*instagram.ContainerStatusResult](err), nil
+			return errorResult[checkStatusOutput](err), nil
 		}
-		return okResult(status), nil
+		return okResult(checkStatusOutput{
+			ID:         status.ID,
+			StatusCode: string(status.StatusCode),
+			Status:     status.Status,
+		}), nil
 	})
 }
 

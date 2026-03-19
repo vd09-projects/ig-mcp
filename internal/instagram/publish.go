@@ -13,7 +13,7 @@ import (
 // GetContainerStatus checks the processing status of a media container.
 func (c *graphClient) GetContainerStatus(ctx context.Context, containerID string) (*ContainerStatusResult, error) {
 	raw, err := c.api.Get(ctx, "/"+containerID, url.Values{
-		"fields": {"id,status_code,status"},
+		"fields": {"id,status_code,status,error_message"},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("getting container status: %w", err)
@@ -42,8 +42,12 @@ func (c *graphClient) WaitForContainer(ctx context.Context, containerID string) 
 		case StatusFinished:
 			return status, nil
 		case StatusError, StatusExpired:
-			return nil, fmt.Errorf("container %s failed: %s — %s",
-				containerID, status.StatusCode, status.Status)
+			detail := status.Status
+			if status.ErrorMessage != "" {
+				detail = status.ErrorMessage
+			}
+			return nil, fmt.Errorf("container %s failed (%s): %s",
+				containerID, status.StatusCode, detail)
 		case StatusInProgress:
 			// continue polling
 		default:

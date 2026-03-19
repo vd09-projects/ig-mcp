@@ -5,8 +5,8 @@ package hosting
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -41,7 +41,8 @@ func NewGitHubHost(token, repoFullName string) (*GitHubHost, error) {
 		return nil, fmt.Errorf("GITHUB_REPO must be in owner/repo format, got %q", repoFullName)
 	}
 
-	client := github.NewClient(nil).WithAuthToken(token)
+	httpClient := &http.Client{Timeout: 10 * time.Minute}
+	client := github.NewClient(httpClient).WithAuthToken(token)
 
 	return &GitHubHost{
 		client: client,
@@ -64,19 +65,37 @@ func (h *GitHubHost) Upload(ctx context.Context, filePath string) (string, int64
 		return "", 0, err
 	}
 
-	// Unique asset name to avoid collisions.
-	name := fmt.Sprintf("%d-%s", time.Now().UnixMilli(), filepath.Base(filePath))
+	// Unique asset name with .mp4 extension to avoid collisions
+	// and ensure correct Content-Type on download.
+	name := fmt.Sprintf("%d.mp4", time.Now().UnixMilli())
 
 	asset, _, err := h.client.Repositories.UploadReleaseAsset(
 		ctx, h.owner, h.repo, release.GetID(),
-		&github.UploadOptions{Name: name},
+		&github.UploadOptions{
+			Name:      name,
+			MediaType: "video/mp4",
+		},
 		f,
 	)
 	if err != nil {
 		return "", 0, fmt.Errorf("uploading release asset: %w", err)
 	}
 
-	return asset.GetBrowserDownloadURL(), asset.GetID(), nil
+	// The github.com download URL is blocked by GitHub's robots.txt, causing
+	// Instagram's servers to get a 403. Instead, resolve the redirect chain to
+	// get the actual CDN URL (objects.githubusercontent.com) which is accessible.
+	browserURL := fmt.Sprintf(
+		"https://github.com/%s/%s/releases/download/%s/%s",
+		h.owner, h.repo, releaseTag, name,
+	)
+
+	cdnURL, err := resolveRedirect(ctx, browserURL)
+	if err != nil {
+		// Fall back to browser URL if redirect resolution fails.
+		return browserURL, asset.GetID(), nil
+	}
+
+	return cdnURL, asset.GetID(), nil
 }
 
 // Delete removes a release asset by ID.
@@ -86,6 +105,40 @@ func (h *GitHubHost) Delete(ctx context.Context, assetID int64) error {
 		return fmt.Errorf("deleting release asset: %w", err)
 	}
 	return nil
+}
+
+// resolveRedirect follows the redirect chain for a URL and returns the final
+// destination URL without downloading the body. This is used to resolve GitHub
+// release download URLs to their CDN URLs (objects.githubusercontent.com),
+// which are not blocked by GitHub's robots.txt.
+func resolveRedirect(ctx context.Context, rawURL string) (string, error) {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Stop following redirects — we just want the final Location.
+			if len(via) >= 10 {
+				return fmt.Errorf("too many redirects")
+			}
+			return nil
+		},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, rawURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("resolving redirect: %w", err)
+	}
+	resp.Body.Close()
+
+	finalURL := resp.Request.URL.String()
+	if finalURL == rawURL {
+		return "", fmt.Errorf("no redirect occurred")
+	}
+	return finalURL, nil
 }
 
 // getOrCreateRelease returns the media-assets release, creating it if needed.
