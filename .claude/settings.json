@@ -3,7 +3,8 @@
     "allow": [
       "Bash(go vet:*)",
       "Bash(go test:*)",
-      "Read(//Users/vikrantdhawan/go/pkg/mod/github.com/modelcontextprotocol/go-sdk@v0.2.0/**)"
+      "Read(//Users/vikrantdhawan/go/pkg/mod/github.com/modelcontextprotocol/go-sdk@v0.2.0/**)",
+      "mcp__ig-mcp__upload_reel"
     ]
   }
 }

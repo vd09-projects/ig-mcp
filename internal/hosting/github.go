@@ -5,6 +5,7 @@ package hosting
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -54,21 +55,29 @@ func NewGitHubHost(token, repoFullName string) (*GitHubHost, error) {
 // Upload uploads a local file to the media-assets GitHub Release and returns
 // its public BrowserDownloadURL.
 func (h *GitHubHost) Upload(ctx context.Context, filePath string) (string, int64, error) {
+	log.Printf("[github-host] opening file %q", filePath)
 	f, err := os.Open(filePath)
 	if err != nil {
 		return "", 0, fmt.Errorf("opening file: %w", err)
 	}
 	defer f.Close()
 
+	fi, _ := f.Stat()
+	if fi != nil {
+		log.Printf("[github-host] file size: %.1f MB", float64(fi.Size())/(1024*1024))
+	}
+
 	release, err := h.getOrCreateRelease(ctx)
 	if err != nil {
 		return "", 0, err
 	}
+	log.Printf("[github-host] using release id=%d tag=%s", release.GetID(), releaseTag)
 
 	// Unique asset name with .mp4 extension to avoid collisions
 	// and ensure correct Content-Type on download.
 	name := fmt.Sprintf("%d.mp4", time.Now().UnixMilli())
 
+	log.Printf("[github-host] uploading asset %q to %s/%s …", name, h.owner, h.repo)
 	asset, _, err := h.client.Repositories.UploadReleaseAsset(
 		ctx, h.owner, h.repo, release.GetID(),
 		&github.UploadOptions{
@@ -80,6 +89,7 @@ func (h *GitHubHost) Upload(ctx context.Context, filePath string) (string, int64
 	if err != nil {
 		return "", 0, fmt.Errorf("uploading release asset: %w", err)
 	}
+	log.Printf("[github-host] asset uploaded — asset_id=%d", asset.GetID())
 
 	// The github.com download URL is blocked by GitHub's robots.txt, causing
 	// Instagram's servers to get a 403. Instead, resolve the redirect chain to
@@ -91,9 +101,10 @@ func (h *GitHubHost) Upload(ctx context.Context, filePath string) (string, int64
 
 	cdnURL, err := resolveRedirect(ctx, browserURL)
 	if err != nil {
-		// Fall back to browser URL if redirect resolution fails.
+		log.Printf("[github-host] redirect resolution failed, using browser URL: %v", err)
 		return browserURL, asset.GetID(), nil
 	}
+	log.Printf("[github-host] resolved CDN URL: %s", cdnURL)
 
 	return cdnURL, asset.GetID(), nil
 }

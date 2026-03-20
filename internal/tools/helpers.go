@@ -17,12 +17,14 @@ func errorResult[Out any](err error) *mcp.CallToolResultFor[Out] {
 	}
 }
 
-// okResult builds a successful MCP response with a JSON-encoded value.
+// okResult builds a successful MCP response with both human-readable text
+// content and machine-readable structured content so the client always has data.
 func okResult[Out any](v Out) *mcp.CallToolResultFor[Out] {
 	return &mcp.CallToolResultFor[Out]{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: toJSON(v)},
 		},
+		StructuredContent: v,
 	}
 }
 

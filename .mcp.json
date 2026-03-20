@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ig-mcp": {
+      "command": "go",
+      "args": ["run", "./cmd/instagram-mcp"],
+      "cwd": "/Users/vikrantdhawan/repos/mcps/ig-mcp",
+      "timeout": 600
+    }
+  }
+}

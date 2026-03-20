@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds all configuration required by the Instagram MCP server.
@@ -41,9 +43,12 @@ type Config struct {
 	GitHubRepo string
 }
 
-// Load reads configuration from environment variables, applies defaults,
-// and validates required fields.
+// Load reads configuration from a .env file (if present) and environment
+// variables, applies defaults, and validates required fields.
 func Load() (*Config, error) {
+	// Best-effort: load .env without failing if the file is missing.
+	_ = godotenv.Load()
+
 	cfg := &Config{
 		AccessToken:     os.Getenv("INSTAGRAM_ACCESS_TOKEN"),
 		AccountID:       os.Getenv("INSTAGRAM_ACCOUNT_ID"),
