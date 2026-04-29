@@ -34,7 +34,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	cfg, err := config.Load()
+	cfg, err := config.Load("")
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}

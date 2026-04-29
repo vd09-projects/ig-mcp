@@ -43,11 +43,26 @@ type Config struct {
 	GitHubRepo string
 }
 
-// Load reads configuration from a .env file (if present) and environment
-// variables, applies defaults, and validates required fields.
-func Load() (*Config, error) {
-	// Best-effort: load .env without failing if the file is missing.
-	_ = godotenv.Load()
+// Load reads configuration from an env file and environment variables,
+// applies defaults, and validates required fields.
+//
+// envFile precedence:
+//  1. The envFile argument (non-empty string passed by the caller)
+//  2. The ENV_FILE environment variable
+//  3. ".env" in the current working directory (best-effort, ignored if missing)
+func Load(envFile string) (*Config, error) {
+	if envFile == "" {
+		envFile = os.Getenv("ENV_FILE")
+	}
+
+	if envFile != "" {
+		if err := godotenv.Load(envFile); err != nil {
+			return nil, fmt.Errorf("loading env file %q: %w", envFile, err)
+		}
+	} else {
+		// Best-effort: load .env without failing if the file is missing.
+		_ = godotenv.Load()
+	}
 
 	cfg := &Config{
 		AccessToken:     os.Getenv("INSTAGRAM_ACCESS_TOKEN"),

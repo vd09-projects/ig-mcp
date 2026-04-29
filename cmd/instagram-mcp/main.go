@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -34,8 +35,12 @@ func main() {
 }
 
 func run() error {
+	// ── Flags ─────────────────────────────────────────────────────────────
+	envFile := flag.String("env-file", "", "path to .env file (overrides ENV_FILE env var and local .env)")
+	flag.Parse()
+
 	// ── Configuration ────────────────────────────────────────────────────
-	cfg, err := config.Load()
+	cfg, err := config.Load(*envFile)
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
