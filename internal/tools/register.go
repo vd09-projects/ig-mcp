@@ -35,5 +35,6 @@ func Register(server *mcp.Server, client instagram.Client, host hosting.VideoHos
 	if host != nil {
 		registerHostVideo(server, host)
 		registerDeleteHostedAsset(server, host)
+		registerCleanupHostedAssets(server, host)
 	}
 }
