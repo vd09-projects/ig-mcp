@@ -1,5 +1,7 @@
 package instagram
 
+import "time"
+
 // ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
@@ -97,9 +99,17 @@ type MediaItem struct {
 	CommentsCount    int              `json:"comments_count"`
 }
 
+// TimestampLayout matches Graph API timestamps, e.g. 2025-01-15T10:30:00+0000.
+const TimestampLayout = "2006-01-02T15:04:05-0700"
+
 // IsReel reports whether the media item is a Reel.
 func (m MediaItem) IsReel() bool {
 	return m.MediaProductType == ProductReels
+}
+
+// PublishedAt parses the media item's Graph API timestamp.
+func (m MediaItem) PublishedAt() (time.Time, error) {
+	return time.Parse(TimestampLayout, m.Timestamp)
 }
 
 // InsightValue is a single data point within an insight metric.

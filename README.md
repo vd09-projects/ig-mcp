@@ -25,6 +25,7 @@ instagram-mcp/
 │   │   ├── container.go             # CreateReelContainer, CreateImageContainer, CreateCarouselContainer
 │   │   ├── publish.go               # GetContainerStatus, WaitForContainer, Publish
 │   │   ├── insights.go              # GetMediaInsights, GetPublishingRateLimit, ListRecentMedia
+│   │   ├── reels.go                 # GetReelsReport: per-Reel insights + summary
 │   │   └── mock.go                  # MockClient for unit testing
 │   │
 │   └── tools/                       # ── MCP tool adapters ──
@@ -33,7 +34,7 @@ instagram-mcp/
 │       ├── upload.go                # upload_reel, upload_image_post, upload_carousel
 │       ├── lifecycle.go             # check_container_status, publish_media
 │       ├── query.go                 # get_media_insights, get_publishing_rate_limit, list_recent_media
-│       └── analytics.go             # get_reels_analytics
+│       └── analytics.go             # get_reels_analytics (adapter over GetReelsReport)
 │
 ├── .env.example
 ├── .gitignore
