@@ -43,21 +43,49 @@ func (c *graphClient) GetPublishingRateLimit(ctx context.Context) (*RateLimitInf
 	return &result, nil
 }
 
-// ListRecentMedia returns the most recent media items from the account.
-func (c *graphClient) ListRecentMedia(ctx context.Context, limit int) ([]MediaItem, error) {
-	raw, err := c.api.Get(ctx, "/"+c.accountID+"/media", url.Values{
-		"fields": {"id,caption,media_type,media_url,permalink,timestamp,thumbnail_url"},
-		"limit":  {strconv.Itoa(limit)},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing media: %w", err)
-	}
+// mediaPageSize is the largest page the media edge reliably returns.
+const mediaPageSize = 100
 
-	var envelope struct {
-		Data []MediaItem `json:"data"`
+// ListRecentMedia returns up to limit of the most recent media items from the
+// account, newest first, following pagination cursors as needed.
+func (c *graphClient) ListRecentMedia(ctx context.Context, limit int) ([]MediaItem, error) {
+	var items []MediaItem
+	after := ""
+	for len(items) < limit {
+		params := url.Values{
+			"fields": {"id,caption,media_type,media_product_type,media_url,permalink,timestamp,thumbnail_url,like_count,comments_count"},
+			"limit":  {strconv.Itoa(min(limit-len(items), mediaPageSize))},
+		}
+		if after != "" {
+			params.Set("after", after)
+		}
+
+		raw, err := c.api.Get(ctx, "/"+c.accountID+"/media", params)
+		if err != nil {
+			return nil, fmt.Errorf("listing media: %w", err)
+		}
+
+		var envelope struct {
+			Data   []MediaItem `json:"data"`
+			Paging struct {
+				Cursors struct {
+					After string `json:"after"`
+				} `json:"cursors"`
+				Next string `json:"next"`
+			} `json:"paging"`
+		}
+		if err := json.Unmarshal(raw, &envelope); err != nil {
+			return nil, fmt.Errorf("parsing media list: %w", err)
+		}
+		items = append(items, envelope.Data...)
+
+		if envelope.Paging.Next == "" || envelope.Paging.Cursors.After == "" || len(envelope.Data) == 0 {
+			break
+		}
+		after = envelope.Paging.Cursors.After
 	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
-		return nil, fmt.Errorf("parsing media list: %w", err)
+	if len(items) > limit {
+		items = items[:limit]
 	}
-	return envelope.Data, nil
+	return items, nil
 }

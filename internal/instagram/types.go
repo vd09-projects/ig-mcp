@@ -15,6 +15,16 @@ const (
 	StatusPublished  ContainerStatus = "PUBLISHED"
 )
 
+// MediaProductType identifies the surface a media item was published to.
+type MediaProductType string
+
+const (
+	ProductFeed  MediaProductType = "FEED"
+	ProductReels MediaProductType = "REELS"
+	ProductStory MediaProductType = "STORY"
+	ProductAd    MediaProductType = "AD"
+)
+
 // ---------------------------------------------------------------------------
 // Request params
 // ---------------------------------------------------------------------------
@@ -75,13 +85,21 @@ type PublishResult struct {
 
 // MediaItem represents a single media object returned by the account media list.
 type MediaItem struct {
-	ID           string `json:"id"`
-	Caption      string `json:"caption,omitempty"`
-	MediaType    string `json:"media_type,omitempty"`
-	MediaURL     string `json:"media_url,omitempty"`
-	Permalink    string `json:"permalink,omitempty"`
-	Timestamp    string `json:"timestamp,omitempty"`
-	ThumbnailURL string `json:"thumbnail_url,omitempty"`
+	ID               string           `json:"id"`
+	Caption          string           `json:"caption,omitempty"`
+	MediaType        string           `json:"media_type,omitempty"`
+	MediaProductType MediaProductType `json:"media_product_type,omitempty"`
+	MediaURL         string           `json:"media_url,omitempty"`
+	Permalink        string           `json:"permalink,omitempty"`
+	Timestamp        string           `json:"timestamp,omitempty"`
+	ThumbnailURL     string           `json:"thumbnail_url,omitempty"`
+	LikeCount        int              `json:"like_count"`
+	CommentsCount    int              `json:"comments_count"`
+}
+
+// IsReel reports whether the media item is a Reel.
+func (m MediaItem) IsReel() bool {
+	return m.MediaProductType == ProductReels
 }
 
 // InsightValue is a single data point within an insight metric.

@@ -6,6 +6,7 @@
 //	upload.go   — upload_reel, upload_image_post, upload_carousel
 //	lifecycle.go — check_container_status, publish_media
 //	query.go    — get_media_insights, get_publishing_rate_limit, list_recent_media
+//	analytics.go — get_reels_analytics
 package tools
 
 import (
@@ -30,6 +31,7 @@ func Register(server *mcp.Server, client instagram.Client, host hosting.VideoHos
 	registerGetRateLimit(server, client)
 	registerGetInsights(server, client)
 	registerListMedia(server, client)
+	registerGetReelsAnalytics(server, client)
 
 	// Video hosting tools (only when a host backend is configured)
 	if host != nil {
