@@ -32,7 +32,8 @@ instagram-mcp/
 │       ├── helpers.go               # Shared errorResult(), toJSON()
 │       ├── upload.go                # upload_reel, upload_image_post, upload_carousel
 │       ├── lifecycle.go             # check_container_status, publish_media
-│       └── query.go                 # get_media_insights, get_publishing_rate_limit, list_recent_media
+│       ├── query.go                 # get_media_insights, get_publishing_rate_limit, list_recent_media
+│       └── analytics.go             # get_reels_analytics
 │
 ├── .env.example
 ├── .gitignore
@@ -78,6 +79,7 @@ main → tools → instagram → graphapi
 | `get_publishing_rate_limit` | query.go | Check 24h publishing quota |
 | `get_media_insights` | query.go | Engagement metrics for a published post |
 | `list_recent_media` | query.go | List recent account media |
+| `get_reels_analytics` | analytics.go | Per-Reel views, reach, likes, comments, shares, saves, watch time + totals |
 
 ## Quick Start
 
