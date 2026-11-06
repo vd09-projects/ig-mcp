@@ -9,11 +9,6 @@ import (
 	"github.com/vikrant/instagram-mcp/internal/hosting"
 )
 
-// defaultCleanupOlderThanSecs is the age threshold used when the caller does
-// not specify one. Anything older than this on the CDN is an orphan — a normal
-// upload→publish→delete cycle takes well under an hour.
-const defaultCleanupOlderThanSecs = 3600
-
 // ---------------------------------------------------------------------------
 // host_video
 // ---------------------------------------------------------------------------
@@ -100,17 +95,18 @@ type cleanupAssetsOutput struct {
 	Message      string              `json:"message"`
 }
 
-func registerCleanupHostedAssets(server *mcp.Server, host hosting.VideoHost) {
+func registerCleanupHostedAssets(server *mcp.Server, host hosting.VideoHost, opts Options) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "cleanup_hosted_assets",
 		Description: "Bulk-delete orphaned videos from the GitHub Releases CDN used for temporary Instagram hosting. " +
-			"Deletes every hosted asset older than older_than_secs (default 3600s = 1h); a normal upload→publish→delete " +
+			fmt.Sprintf("Deletes every hosted asset older than older_than_secs (default %ds); a normal upload→publish→delete ",
+				int64(opts.CleanupOlderThan.Seconds())) +
 			"cycle finishes well under that, so anything older is leftover junk. Set dry_run=true to preview without deleting. " +
 			"Needs no asset IDs — the server discovers and removes its own assets. Safe to call repeatedly.",
 	}, func(ctx context.Context, _ *mcp.ServerSession, params *mcp.CallToolParamsFor[cleanupAssetsInput]) (*mcp.CallToolResultFor[cleanupAssetsOutput], error) {
 		olderThanSecs := params.Arguments.OlderThanSecs
 		if olderThanSecs <= 0 {
-			olderThanSecs = defaultCleanupOlderThanSecs
+			olderThanSecs = int64(opts.CleanupOlderThan.Seconds())
 		}
 
 		res, err := host.Cleanup(ctx, time.Duration(olderThanSecs)*time.Second, params.Arguments.DryRun)

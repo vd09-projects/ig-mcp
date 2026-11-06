@@ -15,10 +15,6 @@ var ReelMetrics = []string{
 	"ig_reels_avg_watch_time", "ig_reels_video_view_total_time",
 }
 
-// insightsConcurrency bounds parallel insight requests to stay well under
-// Graph API rate limits.
-const insightsConcurrency = 5
-
 // ReelsReportOptions selects which Reels a report covers.
 type ReelsReportOptions struct {
 	// Limit is how many recent media items to scan; non-Reels are skipped.
@@ -26,6 +22,9 @@ type ReelsReportOptions struct {
 	// Since, when non-zero, drops Reels published before it. Reels whose
 	// timestamp can't be parsed are kept rather than silently dropped.
 	Since time.Time
+	// Concurrency bounds parallel insight requests to stay well under Graph
+	// API rate limits. Values below 1 fetch sequentially.
+	Concurrency int
 }
 
 // ReelStats holds the analytics for a single Reel.
@@ -87,7 +86,7 @@ func GetReelsReport(ctx context.Context, c Client, opts ReelsReportOptions) (*Re
 		return nil, err
 	}
 
-	stats := fetchAllReelStats(ctx, c, filterReels(media, opts.Since))
+	stats := fetchAllReelStats(ctx, c, filterReels(media, opts.Since), opts.Concurrency)
 	if err := checkInsightsFetched(ctx, stats); err != nil {
 		return nil, err
 	}
@@ -110,11 +109,11 @@ func filterReels(media []MediaItem, since time.Time) []MediaItem {
 	return reels
 }
 
-// fetchAllReelStats fetches insights for each Reel, at most insightsConcurrency
-// at a time. Results keep the order of reels.
-func fetchAllReelStats(ctx context.Context, c Client, reels []MediaItem) []ReelStats {
+// fetchAllReelStats fetches insights for each Reel, at most concurrency at a
+// time. Results keep the order of reels.
+func fetchAllReelStats(ctx context.Context, c Client, reels []MediaItem, concurrency int) []ReelStats {
 	stats := make([]ReelStats, len(reels))
-	sem := make(chan struct{}, insightsConcurrency)
+	sem := make(chan struct{}, max(concurrency, 1))
 	var wg sync.WaitGroup
 	for i, r := range reels {
 		wg.Add(1)

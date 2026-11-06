@@ -1,0 +1,26 @@
+# Instagram MCP tunables. Copy to config.yaml and pass with --config or CONFIG_FILE.
+# Every key is optional; omitted keys use the defaults shown here.
+# Secrets (tokens, account IDs) do NOT go here — keep them in .env.
+# Precedence: built-in defaults < this file < env vars.
+
+graph_api:
+  version: v21.0          # env override: GRAPH_API_VERSION
+  timeout: 30s            # per Graph API HTTP request
+
+polling:                  # container-status polling while Instagram processes video
+  interval: 5s            # env override: STATUS_POLL_INTERVAL_MS
+  max_attempts: 60        # env override: STATUS_POLL_MAX_ATTEMPTS
+
+insights:
+  concurrency: 5          # parallel insight requests in get_reels_analytics
+
+tools:
+  max_media_limit: 500    # cap on media items one tool call pages through
+  list_media_default: 10  # list_recent_media limit when caller omits one
+  reels_default: 25       # get_reels_analytics limit when caller omits one
+  cleanup_older_than: 1h  # cleanup_hosted_assets age threshold when caller omits one
+
+hosting:                  # GitHub Release video hosting
+  upload_timeout: 30m     # GitHub API calls incl. release-asset uploads (~10 min per 100 MB)
+  request_timeout: 30s    # HEAD request resolving the CDN URL
+  release_tag: media-assets

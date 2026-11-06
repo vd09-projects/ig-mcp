@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/vikrant/instagram-mcp/internal/instagram"
@@ -85,12 +86,13 @@ type listMediaOutput struct {
 	Data []instagram.MediaItem `json:"data"`
 }
 
-func registerListMedia(server *mcp.Server, client instagram.Client) {
+func registerListMedia(server *mcp.Server, client instagram.Client, opts Options) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "list_recent_media",
-		Description: "List recent posts, reels, and carousels from the Instagram account, with like and comment counts (max 500).",
+		Name: "list_recent_media",
+		Description: fmt.Sprintf("List recent posts, reels, and carousels from the Instagram account, "+
+			"with like and comment counts (default %d, max %d).", opts.ListMediaDefault, opts.MaxMediaLimit),
 	}, func(ctx context.Context, _ *mcp.ServerSession, params *mcp.CallToolParamsFor[listMediaInput]) (*mcp.CallToolResultFor[listMediaOutput], error) {
-		media, err := client.ListRecentMedia(ctx, clampLimit(params.Arguments.Limit, 10))
+		media, err := client.ListRecentMedia(ctx, clampLimit(params.Arguments.Limit, opts.ListMediaDefault, opts.MaxMediaLimit))
 		if err != nil {
 			return errorResult[listMediaOutput](err), nil
 		}

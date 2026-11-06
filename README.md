@@ -12,7 +12,7 @@ instagram-mcp/
 │
 ├── internal/
 │   ├── config/
-│   │   ├── config.go                # Env loading + validation
+│   │   ├── config.go                # Env + YAML config loading, validation
 │   │   └── config_test.go           # Unit tests
 │   │
 │   ├── graphapi/                    # ── Reusable HTTP layer ──
@@ -37,6 +37,7 @@ instagram-mcp/
 │       └── analytics.go             # get_reels_analytics (adapter over GetReelsReport)
 │
 ├── .env.example
+├── config.example.yaml              # Optional tunables (timeouts, limits)
 ├── .gitignore
 ├── .golangci.yml                    # Linter configuration
 ├── Dockerfile                       # Multi-stage scratch build
@@ -91,6 +92,10 @@ make build
 # Configure
 cp .env.example .env
 # Edit .env with your credentials
+
+# Optional: tune timeouts, limits, concurrency
+cp config.example.yaml config.yaml
+# Then pass --config config.yaml or set CONFIG_FILE=config.yaml
 
 # Run
 source .env && make run

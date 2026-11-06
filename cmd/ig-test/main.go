@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -34,7 +35,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	cfg, err := config.Load("")
+	cfg, err := config.Load("", "")
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
@@ -93,8 +94,9 @@ func main() {
 }
 
 func publishReel(ctx context.Context, cfg *config.Config, videoURL, caption string) {
-	api := graphapi.NewClient(cfg.BaseURL(), cfg.AccessToken)
-	ig := instagram.NewClient(api, cfg.AccountID, cfg.PollInterval, cfg.PollMaxAttempts)
+	api := graphapi.NewClient(cfg.BaseURL(), cfg.AccessToken,
+		graphapi.WithHTTPClient(&http.Client{Timeout: cfg.GraphAPI.Timeout}))
+	ig := instagram.NewClient(api, cfg.AccountID, cfg.Polling.Interval, cfg.Polling.MaxAttempts)
 
 	log.Println("creating reel container...")
 	containerID, err := ig.CreateReelContainer(ctx, instagram.ReelParams{
@@ -125,7 +127,11 @@ func mustGitHubHost(cfg *config.Config) *hosting.GitHubHost {
 	if !cfg.GitHubHostingEnabled() {
 		log.Fatal("GITHUB_TOKEN and GITHUB_REPO must be set")
 	}
-	host, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo)
+	host, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo, hosting.GitHubOptions{
+		UploadTimeout:  cfg.Hosting.UploadTimeout,
+		RequestTimeout: cfg.Hosting.RequestTimeout,
+		ReleaseTag:     cfg.Hosting.ReleaseTag,
+	})
 	if err != nil {
 		log.Fatalf("github host: %v", err)
 	}

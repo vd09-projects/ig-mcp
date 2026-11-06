@@ -47,30 +47,42 @@ type CleanupResult struct {
 	FreedBytes int64       `json:"freed_bytes"`
 }
 
-const releaseTag = "media-assets"
+// GitHubOptions tunes a GitHubHost.
+type GitHubOptions struct {
+	// UploadTimeout bounds GitHub API calls, including release-asset uploads.
+	UploadTimeout time.Duration
+	// RequestTimeout bounds the HEAD request that resolves the CDN URL.
+	RequestTimeout time.Duration
+	// ReleaseTag is the GitHub Release that holds hosted assets.
+	ReleaseTag string
+}
 
 // GitHubHost hosts videos as GitHub Release assets.
 type GitHubHost struct {
-	client *github.Client
-	owner  string
-	repo   string
+	client         *github.Client
+	owner          string
+	repo           string
+	releaseTag     string
+	requestTimeout time.Duration
 }
 
 // NewGitHubHost creates a VideoHost backed by GitHub Releases.
 // repoFullName must be in "owner/repo" format.
-func NewGitHubHost(token, repoFullName string) (*GitHubHost, error) {
+func NewGitHubHost(token, repoFullName string, opts GitHubOptions) (*GitHubHost, error) {
 	owner, repo, ok := strings.Cut(repoFullName, "/")
 	if !ok || owner == "" || repo == "" {
 		return nil, fmt.Errorf("GITHUB_REPO must be in owner/repo format, got %q", repoFullName)
 	}
 
-	httpClient := &http.Client{Timeout: 10 * time.Minute}
+	httpClient := &http.Client{Timeout: opts.UploadTimeout}
 	client := github.NewClient(httpClient).WithAuthToken(token)
 
 	return &GitHubHost{
-		client: client,
-		owner:  owner,
-		repo:   repo,
+		client:         client,
+		owner:          owner,
+		repo:           repo,
+		releaseTag:     opts.ReleaseTag,
+		requestTimeout: opts.RequestTimeout,
 	}, nil
 }
 
@@ -93,7 +105,7 @@ func (h *GitHubHost) Upload(ctx context.Context, filePath string) (string, int64
 	if err != nil {
 		return "", 0, err
 	}
-	log.Printf("[github-host] using release id=%d tag=%s", release.GetID(), releaseTag)
+	log.Printf("[github-host] using release id=%d tag=%s", release.GetID(), h.releaseTag)
 
 	// Unique asset name with .mp4 extension to avoid collisions
 	// and ensure correct Content-Type on download.
@@ -118,10 +130,10 @@ func (h *GitHubHost) Upload(ctx context.Context, filePath string) (string, int64
 	// get the actual CDN URL (objects.githubusercontent.com) which is accessible.
 	browserURL := fmt.Sprintf(
 		"https://github.com/%s/%s/releases/download/%s/%s",
-		h.owner, h.repo, releaseTag, name,
+		h.owner, h.repo, h.releaseTag, name,
 	)
 
-	cdnURL, err := resolveRedirect(ctx, browserURL)
+	cdnURL, err := resolveRedirect(ctx, browserURL, h.requestTimeout)
 	if err != nil {
 		log.Printf("[github-host] redirect resolution failed, using browser URL: %v", err)
 		return browserURL, asset.GetID(), nil
@@ -147,13 +159,13 @@ func (h *GitHubHost) Delete(ctx context.Context, assetID int64) error {
 func (h *GitHubHost) Cleanup(ctx context.Context, olderThan time.Duration, dryRun bool) (CleanupResult, error) {
 	result := CleanupResult{DryRun: dryRun, Deleted: []AssetInfo{}, Kept: []AssetInfo{}}
 
-	rel, resp, err := h.client.Repositories.GetReleaseByTag(ctx, h.owner, h.repo, releaseTag)
+	rel, resp, err := h.client.Repositories.GetReleaseByTag(ctx, h.owner, h.repo, h.releaseTag)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			// No release yet — nothing has ever been hosted.
 			return result, nil
 		}
-		return result, fmt.Errorf("looking up release %q: %w", releaseTag, err)
+		return result, fmt.Errorf("looking up release %q: %w", h.releaseTag, err)
 	}
 
 	now := time.Now()
@@ -203,9 +215,9 @@ func (h *GitHubHost) Cleanup(ctx context.Context, olderThan time.Duration, dryRu
 // destination URL without downloading the body. This is used to resolve GitHub
 // release download URLs to their CDN URLs (objects.githubusercontent.com),
 // which are not blocked by GitHub's robots.txt.
-func resolveRedirect(ctx context.Context, rawURL string) (string, error) {
+func resolveRedirect(ctx context.Context, rawURL string, timeout time.Duration) (string, error) {
 	client := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			// Stop following redirects — we just want the final Location.
 			if len(via) >= 10 {
@@ -235,22 +247,22 @@ func resolveRedirect(ctx context.Context, rawURL string) (string, error) {
 
 // getOrCreateRelease returns the media-assets release, creating it if needed.
 func (h *GitHubHost) getOrCreateRelease(ctx context.Context) (*github.RepositoryRelease, error) {
-	rel, resp, err := h.client.Repositories.GetReleaseByTag(ctx, h.owner, h.repo, releaseTag)
+	rel, resp, err := h.client.Repositories.GetReleaseByTag(ctx, h.owner, h.repo, h.releaseTag)
 	if err == nil {
 		return rel, nil
 	}
 	if resp == nil || resp.StatusCode != 404 {
-		return nil, fmt.Errorf("looking up release %q: %w", releaseTag, err)
+		return nil, fmt.Errorf("looking up release %q: %w", h.releaseTag, err)
 	}
 
 	// Create the release.
 	rel, _, err = h.client.Repositories.CreateRelease(ctx, h.owner, h.repo, &github.RepositoryRelease{
-		TagName: github.Ptr(releaseTag),
+		TagName: github.Ptr(h.releaseTag),
 		Name:    github.Ptr("Media Assets"),
 		Body:    github.Ptr("Ephemeral video hosting for Instagram uploads. Assets are deleted after publishing."),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("creating release %q: %w", releaseTag, err)
+		return nil, fmt.Errorf("creating release %q: %w", h.releaseTag, err)
 	}
 	return rel, nil
 }

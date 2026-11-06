@@ -18,20 +18,20 @@ type reelsAnalyticsInput struct {
 	Since string `json:"since,omitempty"`
 }
 
-func registerGetReelsAnalytics(server *mcp.Server, client instagram.Client) {
+func registerGetReelsAnalytics(server *mcp.Server, client instagram.Client, opts Options) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "get_reels_analytics",
 		Description: "Fetch per-Reel analytics for the account: views, reach, likes, comments, shares, saves, " +
 			"watch time and engagement rate, plus account-level totals. " +
-			"limit = how many recent media items to scan (default 25, max 500); " +
+			fmt.Sprintf("limit = how many recent media items to scan (default %d, max %d); ", opts.ReelsDefault, opts.MaxMediaLimit) +
 			"since = optional RFC3339 or YYYY-MM-DD date to only include Reels published on/after it.",
 	}, func(ctx context.Context, _ *mcp.ServerSession, params *mcp.CallToolParamsFor[reelsAnalyticsInput]) (*mcp.CallToolResultFor[instagram.ReelsReport], error) {
-		opts, err := reelsReportOptions(params.Arguments)
+		reportOpts, err := reelsReportOptions(params.Arguments, opts)
 		if err != nil {
 			return errorResult[instagram.ReelsReport](err), nil
 		}
 
-		report, err := instagram.GetReelsReport(ctx, client, opts)
+		report, err := instagram.GetReelsReport(ctx, client, reportOpts)
 		if err != nil {
 			return errorResult[instagram.ReelsReport](err), nil
 		}
@@ -39,8 +39,11 @@ func registerGetReelsAnalytics(server *mcp.Server, client instagram.Client) {
 	})
 }
 
-func reelsReportOptions(in reelsAnalyticsInput) (instagram.ReelsReportOptions, error) {
-	opts := instagram.ReelsReportOptions{Limit: clampLimit(in.Limit, 25)}
+func reelsReportOptions(in reelsAnalyticsInput, toolOpts Options) (instagram.ReelsReportOptions, error) {
+	opts := instagram.ReelsReportOptions{
+		Limit:       clampLimit(in.Limit, toolOpts.ReelsDefault, toolOpts.MaxMediaLimit),
+		Concurrency: toolOpts.InsightsConcurrency,
+	}
 	if in.Since != "" {
 		since, err := parseSince(in.Since)
 		if err != nil {

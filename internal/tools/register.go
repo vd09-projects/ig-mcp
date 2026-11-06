@@ -10,14 +10,30 @@
 package tools
 
 import (
+	"time"
+
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/vikrant/instagram-mcp/internal/hosting"
 	"github.com/vikrant/instagram-mcp/internal/instagram"
 )
 
+// Options holds per-tool defaults and caps.
+type Options struct {
+	// MaxMediaLimit caps how many media items a single tool call will page through.
+	MaxMediaLimit int
+	// ListMediaDefault is list_recent_media's limit when the caller omits one.
+	ListMediaDefault int
+	// ReelsDefault is get_reels_analytics's limit when the caller omits one.
+	ReelsDefault int
+	// InsightsConcurrency bounds parallel insight requests in get_reels_analytics.
+	InsightsConcurrency int
+	// CleanupOlderThan is cleanup_hosted_assets's age threshold when the caller omits one.
+	CleanupOlderThan time.Duration
+}
+
 // Register adds all Instagram tools to the MCP server.
 // host may be nil — if so, local-file hosting tools are not registered.
-func Register(server *mcp.Server, client instagram.Client, host hosting.VideoHost) {
+func Register(server *mcp.Server, client instagram.Client, host hosting.VideoHost, opts Options) {
 	// Upload tools
 	registerUploadReel(server, client, host)
 	registerUploadImage(server, client)
@@ -30,13 +46,13 @@ func Register(server *mcp.Server, client instagram.Client, host hosting.VideoHos
 	// Query tools
 	registerGetRateLimit(server, client)
 	registerGetInsights(server, client)
-	registerListMedia(server, client)
-	registerGetReelsAnalytics(server, client)
+	registerListMedia(server, client, opts)
+	registerGetReelsAnalytics(server, client, opts)
 
 	// Video hosting tools (only when a host backend is configured)
 	if host != nil {
 		registerHostVideo(server, host)
 		registerDeleteHostedAsset(server, host)
-		registerCleanupHostedAssets(server, host)
+		registerCleanupHostedAssets(server, host, opts)
 	}
 }
