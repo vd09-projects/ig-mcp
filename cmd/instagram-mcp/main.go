@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,24 +38,26 @@ func main() {
 func run() error {
 	// ── Flags ─────────────────────────────────────────────────────────────
 	envFile := flag.String("env-file", "", "path to .env file (overrides ENV_FILE env var and local .env)")
+	configFile := flag.String("config", "", "path to YAML config file (overrides CONFIG_FILE env var)")
 	flag.Parse()
 
 	// ── Configuration ────────────────────────────────────────────────────
-	cfg, err := config.Load(*envFile)
+	cfg, err := config.Load(*envFile, *configFile)
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
 	// ── Graph API transport ──────────────────────────────────────────────
-	api := graphapi.NewClient(cfg.BaseURL(), cfg.AccessToken)
+	api := graphapi.NewClient(cfg.BaseURL(), cfg.AccessToken,
+		graphapi.WithHTTPClient(&http.Client{Timeout: cfg.GraphAPI.Timeout}))
 
 	// ── Instagram domain client ──────────────────────────────────────────
-	igClient := instagram.NewClient(api, cfg.AccountID, cfg.PollInterval, cfg.PollMaxAttempts)
+	igClient := instagram.NewClient(api, cfg.AccountID, cfg.Polling.Interval, cfg.Polling.MaxAttempts)
 
 	// ── Video hosting (optional) ─────────────────────────────────────────
 	var videoHost hosting.VideoHost
 	if cfg.GitHubHostingEnabled() {
-		gh, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo)
+		gh, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo, cfg.HostingOptions())
 		if err != nil {
 			return fmt.Errorf("creating GitHub host: %w", err)
 		}
@@ -68,7 +71,7 @@ func run() error {
 		nil,
 	)
 
-	tools.Register(server, igClient, videoHost)
+	tools.Register(server, igClient, videoHost, cfg.ToolsOptions())
 
 	// ── Graceful shutdown ────────────────────────────────────────────────
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

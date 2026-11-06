@@ -12,7 +12,7 @@ instagram-mcp/
 │
 ├── internal/
 │   ├── config/
-│   │   ├── config.go                # Env loading + validation
+│   │   ├── config.go                # Env + YAML config loading, validation
 │   │   └── config_test.go           # Unit tests
 │   │
 │   ├── graphapi/                    # ── Reusable HTTP layer ──
@@ -37,6 +37,7 @@ instagram-mcp/
 │       └── analytics.go             # get_reels_analytics (adapter over GetReelsReport)
 │
 ├── .env.example
+├── config.example.yaml              # Optional tunables (timeouts, limits)
 ├── .gitignore
 ├── .golangci.yml                    # Linter configuration
 ├── Dockerfile                       # Multi-stage scratch build
@@ -92,6 +93,10 @@ make build
 cp .env.example .env
 # Edit .env with your credentials
 
+# Optional: tune timeouts, limits, concurrency
+cp config.example.yaml config.yaml
+# Then pass --config config.yaml or set CONFIG_FILE=config.yaml
+
 # Run
 source .env && make run
 ```
@@ -108,11 +113,14 @@ source .env && make run
       "env": {
         "INSTAGRAM_ACCESS_TOKEN": "EAAxxxxxxx...",
         "INSTAGRAM_ACCOUNT_ID": "17841400123456789"
-      }
+      },
+      "args": ["--config", "/path/to/config.yaml"]
     }
   }
 }
 ```
+
+`args` is optional; omit it to use built-in defaults.
 
 ### Claude Code
 
@@ -127,6 +135,7 @@ make docker
 docker run --rm \
   -e INSTAGRAM_ACCESS_TOKEN=xxx \
   -e INSTAGRAM_ACCOUNT_ID=yyy \
+  -v "$PWD/config.yaml:/config.yaml:ro" -e CONFIG_FILE=/config.yaml \
   instagram-mcp:latest
 ```
 

@@ -35,12 +35,13 @@ func TestGetReelsReport(t *testing.T) {
 			case "r2":
 				return nil, errors.New("media too new")
 			}
-			t.Fatalf("unexpected insights call for %s", id)
+			t.Errorf("unexpected insights call for %s", id)
 			return nil, nil
 		},
 	}
 
-	out, err := GetReelsReport(context.Background(), mock, ReelsReportOptions{Limit: 25})
+	// Concurrency > 1 keeps the parallel fetch path under -race.
+	out, err := GetReelsReport(context.Background(), mock, ReelsReportOptions{Limit: 25, Concurrency: 5})
 	if err != nil {
 		t.Fatal(err)
 	}
