@@ -113,11 +113,14 @@ source .env && make run
       "env": {
         "INSTAGRAM_ACCESS_TOKEN": "EAAxxxxxxx...",
         "INSTAGRAM_ACCOUNT_ID": "17841400123456789"
-      }
+      },
+      "args": ["--config", "/path/to/config.yaml"]
     }
   }
 }
 ```
+
+`args` is optional; omit it to use built-in defaults.
 
 ### Claude Code
 
@@ -132,6 +135,7 @@ make docker
 docker run --rm \
   -e INSTAGRAM_ACCESS_TOKEN=xxx \
   -e INSTAGRAM_ACCOUNT_ID=yyy \
+  -v "$PWD/config.yaml:/config.yaml:ro" -e CONFIG_FILE=/config.yaml \
   instagram-mcp:latest
 ```
 

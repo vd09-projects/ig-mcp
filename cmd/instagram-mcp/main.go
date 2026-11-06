@@ -57,11 +57,7 @@ func run() error {
 	// ── Video hosting (optional) ─────────────────────────────────────────
 	var videoHost hosting.VideoHost
 	if cfg.GitHubHostingEnabled() {
-		gh, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo, hosting.GitHubOptions{
-			UploadTimeout:  cfg.Hosting.UploadTimeout,
-			RequestTimeout: cfg.Hosting.RequestTimeout,
-			ReleaseTag:     cfg.Hosting.ReleaseTag,
-		})
+		gh, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo, cfg.HostingOptions())
 		if err != nil {
 			return fmt.Errorf("creating GitHub host: %w", err)
 		}
@@ -75,13 +71,7 @@ func run() error {
 		nil,
 	)
 
-	tools.Register(server, igClient, videoHost, tools.Options{
-		MaxMediaLimit:       cfg.Tools.MaxMediaLimit,
-		ListMediaDefault:    cfg.Tools.ListMediaDefault,
-		ReelsDefault:        cfg.Tools.ReelsDefault,
-		InsightsConcurrency: cfg.Insights.Concurrency,
-		CleanupOlderThan:    cfg.Tools.CleanupOlderThan,
-	})
+	tools.Register(server, igClient, videoHost, cfg.ToolsOptions())
 
 	// ── Graceful shutdown ────────────────────────────────────────────────
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

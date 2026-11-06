@@ -15,7 +15,10 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
+
+	"github.com/vikrant/instagram-mcp/internal/hosting"
+	"github.com/vikrant/instagram-mcp/internal/tools"
 )
 
 // Config holds all configuration required by the Instagram MCP server.
@@ -209,6 +212,29 @@ func (c *Config) applyEnvOverrides() error {
 // BaseURL returns the versioned Graph API base URL.
 func (c *Config) BaseURL() string {
 	return "https://graph.instagram.com/" + c.GraphAPI.Version
+}
+
+// HostingOptions returns the GitHub hosting options. Building them here keeps
+// every caller on validated values rather than a hand-copied, possibly
+// zero-valued struct (zero timeout = none, empty tag = broken lookups).
+func (c *Config) HostingOptions() hosting.GitHubOptions {
+	return hosting.GitHubOptions{
+		UploadTimeout:  c.Hosting.UploadTimeout,
+		RequestTimeout: c.Hosting.RequestTimeout,
+		ReleaseTag:     c.Hosting.ReleaseTag,
+	}
+}
+
+// ToolsOptions returns the MCP tool options. See HostingOptions for why this
+// lives here; a zero CleanupOlderThan would delete in-flight uploads.
+func (c *Config) ToolsOptions() tools.Options {
+	return tools.Options{
+		MaxMediaLimit:       c.Tools.MaxMediaLimit,
+		ListMediaDefault:    c.Tools.ListMediaDefault,
+		ReelsDefault:        c.Tools.ReelsDefault,
+		InsightsConcurrency: c.Insights.Concurrency,
+		CleanupOlderThan:    c.Tools.CleanupOlderThan,
+	}
 }
 
 // GitHubHostingEnabled reports whether GitHub Release hosting is configured.

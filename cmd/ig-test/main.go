@@ -127,11 +127,7 @@ func mustGitHubHost(cfg *config.Config) *hosting.GitHubHost {
 	if !cfg.GitHubHostingEnabled() {
 		log.Fatal("GITHUB_TOKEN and GITHUB_REPO must be set")
 	}
-	host, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo, hosting.GitHubOptions{
-		UploadTimeout:  cfg.Hosting.UploadTimeout,
-		RequestTimeout: cfg.Hosting.RequestTimeout,
-		ReleaseTag:     cfg.Hosting.ReleaseTag,
-	})
+	host, err := hosting.NewGitHubHost(cfg.GitHubToken, cfg.GitHubRepo, cfg.HostingOptions())
 	if err != nil {
 		log.Fatalf("github host: %v", err)
 	}

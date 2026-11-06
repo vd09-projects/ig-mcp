@@ -162,6 +162,7 @@ func TestLoad_ConfigFileErrors(t *testing.T) {
 	for name, tc := range map[string]struct{ body, wantErr string }{
 		"unknown key":         {"tools:\n  max_media: 5\n", "max_media"},
 		"bad duration":        {"hosting:\n  upload_timeout: soon\n", "parsing config file"},
+		"unitless duration":   {"graph_api:\n  timeout: 30\n", "time.Duration"},
 		"zero concurrency":    {"insights:\n  concurrency: 0\n", "insights.concurrency"},
 		"default above max":   {"tools:\n  max_media_limit: 20\n", "tools.reels_default"},
 		"negative timeout":    {"graph_api:\n  timeout: -1s\n", "graph_api.timeout"},
@@ -208,5 +209,38 @@ func TestExampleConfigMatchesDefaults(t *testing.T) {
 	if cfg.GraphAPI != want.GraphAPI || cfg.Polling != want.Polling || cfg.Insights != want.Insights ||
 		cfg.Tools != want.Tools || cfg.Hosting != want.Hosting {
 		t.Errorf("config.example.yaml drifted from Default():\n got %+v\nwant %+v", cfg, want)
+	}
+}
+
+func TestOptionsFromConfig(t *testing.T) {
+	t.Setenv("INSTAGRAM_ACCESS_TOKEN", "tok")
+	t.Setenv("INSTAGRAM_ACCOUNT_ID", "999")
+	path := writeConfig(t, `
+insights:
+  concurrency: 3
+tools:
+  max_media_limit: 100
+  list_media_default: 7
+  reels_default: 9
+  cleanup_older_than: 2h
+hosting:
+  upload_timeout: 5m
+  request_timeout: 10s
+  release_tag: tag-x
+`)
+
+	cfg, err := config.Load("", path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	h := cfg.HostingOptions()
+	if h.UploadTimeout != 5*time.Minute || h.RequestTimeout != 10*time.Second || h.ReleaseTag != "tag-x" {
+		t.Errorf("unexpected hosting options: %+v", h)
+	}
+	o := cfg.ToolsOptions()
+	if o.MaxMediaLimit != 100 || o.ListMediaDefault != 7 || o.ReelsDefault != 9 ||
+		o.InsightsConcurrency != 3 || o.CleanupOlderThan != 2*time.Hour {
+		t.Errorf("unexpected tools options: %+v", o)
 	}
 }
