@@ -7,6 +7,17 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// maxMediaLimit caps how many media items a single tool call will page through.
+const maxMediaLimit = 500
+
+// clampLimit returns def when n is unset or negative, and caps n at maxMediaLimit.
+func clampLimit(n, def int) int {
+	if n <= 0 {
+		return def
+	}
+	return min(n, maxMediaLimit)
+}
+
 // errorResult builds an MCP error response from a Go error.
 func errorResult[Out any](err error) *mcp.CallToolResultFor[Out] {
 	return &mcp.CallToolResultFor[Out]{
